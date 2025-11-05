@@ -14,21 +14,21 @@ const configurations: Record<string, ApiConfig> = {
   development: {
     baseUrl: 'https://dev-creamat.fds-1.com', //, 'https://localhost:44355'
     catalogApi: 'https://dev-creamat.fds-1.com/catalog', // ,
-    cdnApi: 'https://localhost:7126',//', //'https://dev-creamat.fds-1.com/cdn'  CDN API endpoint
+    cdnApi: 'https://dev-creamat.fds-1.com/cdn',//', //  'https://localhost:7126' CDN API endpoint
     timeout: 30000, // 30 seconds
     retryAttempts: 3,
   },
   staging: {
-    baseUrl: 'https://staging-api.creamati.com',
-    catalogApi: 'https://staging-catalog-api.creamati.com',
-    cdnApi: 'https://staging-cdn-api.creamati.com',
+    baseUrl: 'https://dev-creamat.fds-1.com',
+    catalogApi: 'https://dev-creamat.fds-1.com/catalog',
+    cdnApi: 'https://dev-creamat.fds-1.com/cdn',
     timeout: 30000,
     retryAttempts: 3,
   },
   production: {
-    baseUrl: 'https://api.creamati.com',
-    catalogApi: 'https://catalog-api.creamati.com',
-    cdnApi: 'https://cdn-api.creamati.com',
+    baseUrl: 'https://dev-creamat.fds-1.com',
+    catalogApi: 'https://dev-creamat.fds-1.com/catalog',
+    cdnApi: 'https://dev-creamat.fds-1.com/cdn',
     timeout: 30000,
     retryAttempts: 3,
   },
