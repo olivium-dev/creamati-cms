@@ -23,7 +23,11 @@ import {
   ItemTagsResponse,
   GetAllTagsResponse,
   GetAllTagNamesResponse,
-  GetItemForCmsResponse
+  GetItemForCmsResponse,
+  LinkItemsRequest,
+  LinkItemsResponse,
+  UnlinkItemRequest,
+  UnlinkItemResponse
 } from '../types/item';
 import {
   FileUploadResponse,
@@ -201,7 +205,7 @@ export const itemApi = {
 
   // Search items with pagination and filters
   searchItems: async (searchRequest: SearchItemsRequest): Promise<SearchItemsResponse> => {
-    const response = await apiClient.post('/Item/Search', searchRequest);
+    const response = await apiClient.post('/ItemExtended/Search', searchRequest);
     return response.data;
   },
 
@@ -221,6 +225,50 @@ export const itemApi = {
   removeItemTags: async (request: ItemTagsRequest): Promise<ItemTagsResponse> => {
     const response = await apiClient.post('/Item/Tag/Remove', request);
     return response.data;
+  },
+
+  // Link two items together
+  linkItems: async (request: LinkItemsRequest): Promise<LinkItemsResponse> => {
+    try {
+      console.log('Linking items with data:', JSON.stringify(request));
+      const response = await apiClient.post('/ItemExtended/link', request);
+      console.log('Link items response:', response);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error linking items:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+        console.error('Response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
+      }
+      throw error;
+    }
+  },
+
+  // Unlink an item from its parent
+  unlinkItem: async (request: UnlinkItemRequest): Promise<UnlinkItemResponse> => {
+    try {
+      console.log('Unlinking item with data:', JSON.stringify(request));
+      const response = await apiClient.post('/ItemExtended/unlink', request);
+      console.log('Unlink item response:', response);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error unlinking item:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+        console.error('Response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error setting up request:', error.message);
+      }
+      throw error;
+    }
   },
 };
 
