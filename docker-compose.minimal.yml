@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Container App (Main Host)
+  container-app:
+    build:
+      context: ./frontend/container
+      dockerfile: Dockerfile.dev
+    container_name: micro-frontend-container-minimal
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend/container:/app
+      - /app/node_modules
+      - ./frontend/shared-ui-lib:/app/shared-ui-lib
+    networks:
+      - micro-frontend-network
+    depends_on:
+      - orders-app
+      - delivery-app
+    command: npx webpack serve --config webpack.minimal.js --host 0.0.0.0
+
+  # Orders App
+  orders-app:
+    build:
+      context: ./frontend/orders-app
+      dockerfile: Dockerfile.dev
+    container_name: micro-frontend-orders-minimal
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - REACT_APP_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend/orders-app:/app
+      - /app/node_modules
+      - ./frontend/shared-ui-lib:/app/shared-ui-lib
+    networks:
+      - micro-frontend-network
+    command: npx webpack serve --config webpack.config.js --host 0.0.0.0
+
+  # Delivery App
+  delivery-app:
+    build:
+      context: ./frontend/delivery-app
+      dockerfile: Dockerfile.dev
+    container_name: micro-frontend-delivery-minimal
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - REACT_APP_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend/delivery-app:/app
+      - /app/node_modules
+      - ./frontend/shared-ui-lib:/app/shared-ui-lib
+    networks:
+      - micro-frontend-network
+    command: npx webpack serve --config webpack.config.js --host 0.0.0.0
+
+networks:
+  micro-frontend-network:
+    driver: bridge
+
+
+
