@@ -75,6 +75,7 @@ module.exports = {
         settingsApp: 'settingsApp@http://localhost:3004/remoteEntry.js',
         ordersApp: 'ordersApp@http://localhost:3006/remoteEntry.js',
         catalogApp: 'catalogApp@http://localhost:3005/remoteEntry.js',
+        deliveryApp: 'deliveryApp@http://localhost:3007/remoteEntry.js',
       },
       shared: {
         react: {
@@ -122,6 +123,16 @@ module.exports = {
           singleton: true,
           requiredVersion: '^11.11.0',
           eager: true,
+        },
+        '@tanstack/react-query': {
+          singleton: true,
+          requiredVersion: '^5.17.0',
+          eager: true,
+        },
+        axios: {
+          singleton: true,
+          requiredVersion: '^1.6.0',
+          eager: false,
         },
       },
     }),
