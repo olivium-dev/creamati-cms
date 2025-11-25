@@ -82,13 +82,6 @@ jobs:
         export NODE_OPTIONS="--max-old-space-size=4096"
         timeout 10m npm run build
         
-    - name: Deploy Container to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: frontend/container/build
-        destination_dir: container
-        
   deploy-micro-frontends:
     needs: build-and-test
     runs-on: ubuntu-latest
