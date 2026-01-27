@@ -19,9 +19,9 @@ import {
   InputLabel,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { GetItemForCmsResponse, ItemDetailsRequest, ItemResponse } from '../types/item';
+import { GetItemForCmsResponse, ItemDetailsRequest, ItemResponse, TagResponse } from '../types/item';
 import { categoryApi, tagApi } from '../services/api';
-import { CategoryResponse } from '../types/category';
+import { CategoryCmsResponse } from '../types/category';
 import { DynamicAdditionalParam } from '../types/additionalParams';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import DynamicAdditionalParamField from './DynamicAdditionalParamField';
@@ -59,8 +59,8 @@ const ItemDialog: React.FC<ItemDialogProps> = ({ open, item, onClose, onSave }) 
   const [dynamicAdditionalParams, setDynamicAdditionalParams] = useState<DynamicAdditionalParam[]>([]);
   
   // Available options
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<CategoryResponse[]>([]);
+  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<CategoryCmsResponse[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -101,7 +101,7 @@ const ItemDialog: React.FC<ItemDialogProps> = ({ open, item, onClose, onSave }) 
   const loadAvailableOptions = async () => {
     try {
       // Load available tags
-      const tagResponse = await tagApi.getAllTagNames();
+      const tagResponse = await tagApi.getAllTags();
       setAvailableTags(tagResponse.tags || []);
 
       // Load available categories (first 100)
@@ -205,46 +205,38 @@ const ItemDialog: React.FC<ItemDialogProps> = ({ open, item, onClose, onSave }) 
             <Grid item xs={12} sm={6}>
               <Autocomplete
                 multiple
-                freeSolo
                 options={availableTags}
-                value={tags}
+                getOptionLabel={(option) => option.name || option.guid}
+                value={availableTags.filter(tag => tags.includes(tag.name || tag.guid))}
                 onChange={(_, newValue) => {
-                  // Handle both string values and new user-entered values
-                  // Ensure all values are strings and filter out any null/undefined values
+                  // Extract tag names/guids from selected TagResponse objects
                   console.log('Tags onChange - raw newValue:', newValue);
                   const processedTags = newValue
-                    .filter(value => value != null && value !== '')
-                    .map(value => typeof value === 'string' ? value : String(value));
+                    .map(tag => tag.name || tag.guid)
+                    .filter(tagName => tagName != null && tagName !== '');
                   console.log('Tags onChange - processed tags:', processedTags);
                   setTags(processedTags);
                 }}
                 filterOptions={(options, params) => {
-                  const filtered = options.filter(option =>
-                    option.toLowerCase().includes(params.inputValue.toLowerCase())
-                  );
-                  
-                  // Add the current input as an option if it's not already in the list
-                  const { inputValue } = params;
-                  const isExisting = options.some(option => 
-                    option.toLowerCase() === inputValue.toLowerCase()
-                  );
-                  
-                  if (inputValue !== '' && !isExisting) {
-                    filtered.push(inputValue);
-                  }
-                  
-                  return filtered;
+                  return options.filter(option => {
+                    const tagName = (option.name || option.guid).toLowerCase();
+                    return tagName.includes(params.inputValue.toLowerCase());
+                  });
                 }}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
-                    <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+                    <Chip 
+                      variant="outlined" 
+                      label={option.name || option.guid} 
+                      {...getTagProps({ index })} 
+                    />
                   ))
                 }
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Tags"
-                    placeholder="Add tags"
+                    placeholder="Select tags"
                   />
                 )}
               />
