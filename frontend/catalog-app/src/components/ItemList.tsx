@@ -24,17 +24,16 @@ import {
   ExpandLess as ExpandLessIcon,
   Link as LinkIcon,
   LinkOff as UnlinkIcon,
+  Inventory as InventoryIcon,
 } from '@mui/icons-material';
-import { itemApi, tagApi, categoryApi } from '../services/api';
-import { GetItemForCmsResponse, ItemDetailsForCms, ItemResponse, SearchItemsRequest } from '../types/item';
+import { itemApi, tagApi, categoryApi, inventoryApi } from '../services/api';
+import { GetItemForCmsResponse, ItemDetailsForCms, ItemResponse, SearchItemsRequest, StockLevel, StockLevelApiItem } from '../types/item';
 import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
+import { ActionButtonConfig } from '../types/actionButtons';
+import actionButtonsConfig from '../config/actionButtons.json';
 import ItemDialog from './ItemDialog';
 import LinkItemDialog from './LinkItemDialog';
-
-interface ItemWithDetails extends ItemResponse {
-  details?: any[];
-}
 
 const ItemList: React.FC = () => {
   const [items, setItems] = useState<ItemResponse[]>([]);
@@ -68,6 +67,10 @@ const ItemList: React.FC = () => {
   // Available options for filters
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<CategoryCmsResponse[]>([]);
+  
+  // Stock levels state
+  const [stockLevels, setStockLevels] = useState<Map<string, StockLevel>>(new Map());
+  const [loadingStock, setLoadingStock] = useState<boolean>(false);
 
   // Load items on component mount and when pagination or search changes
   useEffect(() => {
@@ -107,13 +110,51 @@ const ItemList: React.FC = () => {
       };
 
       const response = await itemApi.searchItems(searchRequest);
-      setItems(response.items || []);
+      const fetchedItems = response.items || [];
+      setItems(fetchedItems);
       setTotalCount(response.totalCount);
+      
+      // Fetch stock levels for the items
+      if (fetchedItems.length > 0) {
+        fetchStockLevels(fetchedItems.map(item => item.guid));
+      }
     } catch (error) {
       console.error('Error fetching items:', error);
       showSnackbar('Failed to load items', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStockLevels = async (itemIds: string[]) => {
+    if (itemIds.length === 0) return;
+    
+    setLoadingStock(true);
+    try {
+      const response = await inventoryApi.getStockLevels(itemIds, true);
+      const stockMap = new Map<string, StockLevel>();
+      
+      // API returns an array directly: StockLevelApiItem[]
+      if (Array.isArray(response)) {
+        response.forEach((stock: StockLevelApiItem) => {
+          if (stock.itemId) {
+            stockMap.set(stock.itemId, {
+              itemId: stock.itemId,
+              availableQuantity: stock.availableQuantity,
+              reservedQuantity: stock.reservedQuantity,
+              totalQuantity: stock.quantity,
+              stockByUoms: stock.stockByUoms,
+            });
+          }
+        });
+      }
+      
+      setStockLevels(stockMap);
+    } catch (error) {
+      console.error('Error fetching stock levels:', error);
+      // Don't show error snackbar for stock - it's not critical
+    } finally {
+      setLoadingStock(false);
     }
   };
 
@@ -129,6 +170,7 @@ const ItemList: React.FC = () => {
     setSearchType('');
     setSearchCategories([]);
     setPaginationModel({ ...paginationModel, page: 0 });
+    setStockLevels(new Map()); // Clear stock levels when search is cleared
     // Fetch will be triggered by useEffect when paginationModel changes
   };
 
@@ -275,6 +317,39 @@ const ItemList: React.FC = () => {
     }
   };
 
+  // Handle action button clicks
+  const handleActionButtonClick = (buttonConfig: ActionButtonConfig, item: ItemResponse) => {
+    if (buttonConfig.type === 'inventory') {
+      // Store itemId and itemName in sessionStorage instead of URL params
+      sessionStorage.setItem('inventoryItemId', item.guid);
+      if (item.name) {
+        sessionStorage.setItem('inventoryItemName', item.name);
+      }
+      
+      // Check if we're in standalone catalog app (port 3005)
+      const isStandalone = window.location.port === '3005';
+      
+      if (isStandalone) {
+        // Standalone catalog app - navigate to standalone inventory
+        window.location.href = 'http://localhost:3008/';
+      } else {
+        // Running in container (dev or prod) - use relative URL
+        window.location.href = '/?tab=inventory';
+      }
+    }
+    // Add other action button types here as needed
+  };
+
+  // Get icon component based on icon string
+  const getIconComponent = (iconName: string) => {
+    switch (iconName) {
+      case 'Inventory':
+        return <InventoryIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+
   // Define columns for the data grid
   const columns: GridColDef[] = [
         { 
@@ -351,16 +426,83 @@ const ItemList: React.FC = () => {
       ),
     },
     {
+      field: 'stock',
+      headerName: 'Stock',
+      width: 250,
+      renderCell: (params) => {
+        const itemId = params.row.guid;
+        const stock = stockLevels.get(itemId);
+        
+        if (loadingStock) {
+          return <CircularProgress size={16} />;
+        }
+        
+        if (!stock) {
+          return <Typography variant="body2" color="text.secondary">N/A</Typography>;
+        }
+        
+        // If stockByUoms exists and has items, display all UOMs
+        if (stock.stockByUoms && stock.stockByUoms.length > 0) {
+          return (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+              {stock.stockByUoms.map((uomStock, index) => {
+                const available = Math.floor(uomStock.availableQuantity ?? 0);
+                let color: 'default' | 'success' | 'warning' | 'error' = 'default';
+                if (available === 0) {
+                  color = 'error';
+                } else if (available < 10) {
+                  color = 'warning';
+                } else {
+                  color = 'success';
+                }
+                
+                return (
+                  <Chip
+                    key={index}
+                    label={`${uomStock.uomCode}: ${available}`}
+                    size="small"
+                    color={color}
+                  />
+                );
+              })}
+            </Box>
+          );
+        }
+        
+        // Fallback to main availableQuantity if stockByUoms is not available
+        const available = Math.floor(stock.availableQuantity ?? 0);
+        let color: 'default' | 'success' | 'warning' | 'error' = 'default';
+        if (available === 0) {
+          color = 'error';
+        } else if (available < 10) {
+          color = 'warning';
+        } else {
+          color = 'success';
+        }
+        
+        return (
+          <Chip 
+            label={available} 
+            size="small" 
+            color={color}
+          />
+        );
+      },
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
-      width: 180,
+      width: 280,
       sortable: false,
       renderCell: (params) => {
         const item = params.row as ItemResponse;
         const hasParent = item.parent && item.parent !== null;
         
+        // Get enabled action buttons from config
+        const enabledActions = (actionButtonsConfig as { actionButtons: ActionButtonConfig[] }).actionButtons.filter(btn => btn.enabled);
+        
         return (
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
             <IconButton
               size="small"
               onClick={() => handleOpenDialog(item)}
@@ -369,6 +511,19 @@ const ItemList: React.FC = () => {
             >
               <EditIcon fontSize="small" />
             </IconButton>
+            
+            {/* Render configurable action buttons */}
+            {enabledActions.map((btnConfig) => (
+              <IconButton
+                key={btnConfig.id}
+                size="small"
+                onClick={() => handleActionButtonClick(btnConfig, item)}
+                color={btnConfig.color}
+                title={btnConfig.label}
+              >
+                {getIconComponent(btnConfig.icon)}
+              </IconButton>
+            ))}
             
             {hasParent ? (
               <IconButton

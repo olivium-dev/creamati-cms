@@ -76,6 +76,7 @@ module.exports = {
         ordersApp: 'ordersApp@/mf/orders/remoteEntry.js',
         catalogApp: 'catalogApp@/mf/catalog/remoteEntry.js',
         deliveryApp: 'deliveryApp@/mf/delivery/remoteEntry.js',
+        inventoryApp: 'inventoryApp@/mf/inventory/remoteEntry.js',
       },
       shared: {
         react: {
