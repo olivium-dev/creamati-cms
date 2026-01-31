@@ -46,6 +46,7 @@ import {
 } from '../../shared-ui-lib/src';
 import ErrorMonitor from './pages/ErrorMonitor';
 import LoginScreen from './components/LoginScreen';
+import { layoutConfig } from './config/layoutConfig';
 
 // Lazy load remote micro-frontends
 const UserManagement = React.lazy(() => import('userApp/UserManagement'));
@@ -469,7 +470,7 @@ function App() {
             component="div"
             sx={{ flexGrow: 1, color: '#61dafb' }}
           >
-            Micro-Frontend Platform
+            {layoutConfig.navbar.title}
           </Typography>
           <Typography variant="body2" sx={{ mr: 2, color: '#cccccc' }}>
             Welcome, {userProfile?.username ?? 'User'}
@@ -671,7 +672,7 @@ function App() {
       >
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="body2" color="#cccccc">
-            © 2025 Micro-Frontend Platform. Built with React + MUI.
+            {layoutConfig.footer.text}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Chip
