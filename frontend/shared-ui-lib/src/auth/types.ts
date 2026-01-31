@@ -22,6 +22,15 @@ export interface TokenResponse {
   token_type: string;
 }
 
+/** Profile from GET /api/User/profile/{userId} */
+export interface UserProfile {
+  userId: string;
+  username: string;
+  email: string;
+  profilePic: string;
+  createdDate: string;
+}
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -35,8 +44,4 @@ export interface AuthContextType extends AuthState {
   refreshToken: () => Promise<void>;
   clearError: () => void;
 }
-
-
-
-
 

@@ -1,0 +1,8 @@
+{
+  "navbar": {
+    "title": "Creamat CMS"
+  },
+  "footer": {
+    "text": "© 2025 Creamat CMS. Built with React + MUI."
+  }
+}

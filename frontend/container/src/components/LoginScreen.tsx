@@ -3,54 +3,24 @@ import {
   Box,
   Card,
   CardContent,
-  TextField,
   Button,
   Typography,
   Alert,
   CircularProgress,
   Container,
   Avatar,
-  InputAdornment,
-  IconButton,
-  Divider,
 } from '@mui/material';
-import {
-  LockOutlined as LockIcon,
-  Visibility,
-  VisibilityOff,
-  PersonOutline as PersonIcon,
-  Google as GoogleIcon,
-} from '@mui/icons-material';
+import { LockOutlined as LockIcon, Google as GoogleIcon } from '@mui/icons-material';
 import { authService } from '../../../shared-ui-lib/src';
 
 interface LoginScreenProps {
-  onLogin: (email: string, password: string) => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading = false, error }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+const LoginScreen: React.FC<LoginScreenProps> = ({ loading = false, error }) => {
   const [localError, setLocalError] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLocalError(null);
-
-    if (!email || !password) {
-      setLocalError('Please enter both email and password');
-      return;
-    }
-
-    try {
-      await onLogin(email, password);
-    } catch (err: any) {
-      setLocalError(err.message || 'Login failed');
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setLocalError(null);
@@ -60,10 +30,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading = false, err
       console.log('🚀 Initiating Google Sign-In...');
       await authService.loginWithGoogle();
       console.log('✅ Google Sign-In successful, reloading page...');
-      // Force page reload to update authentication state
       window.location.reload();
     } catch (err: any) {
-      console.error('❌ Google Sign-In failed:', err);
       setLocalError(err.message || 'Google Sign-In failed');
       setIsGoogleLoading(false);
     }
@@ -124,7 +92,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading = false, err
               </Alert>
             )}
 
-            {/* Google Sign-In Button */}
             <Button
               fullWidth
               variant="outlined"
@@ -146,92 +113,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading = false, err
               {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
             </Button>
 
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                OR
-              </Typography>
-            </Divider>
-
-            <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                required
-                autoComplete="email"
-                autoFocus
-                sx={{ mb: 3 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                required
-                autoComplete="current-password"
-                sx={{ mb: 3 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LockIcon color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                size="large"
-                disabled={loading || isGoogleLoading}
-                sx={{
-                  height: 56,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In with Email'}
-              </Button>
-            </form>
-
             <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
               <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                <strong>Sign in with:</strong>
-              </Typography>
-              <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                • Google Account (click "Continue with Google" above)
-              </Typography>
-              <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                • Email/Password using Firebase authentication
+                <strong>Sign in with your Google account.</strong>
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2, fontStyle: 'italic' }}>
-                Note: First-time Google users will be automatically registered
+                First-time Google users will be automatically registered.
               </Typography>
             </Box>
           </CardContent>
@@ -249,4 +136,3 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading = false, err
 };
 
 export default LoginScreen;
-

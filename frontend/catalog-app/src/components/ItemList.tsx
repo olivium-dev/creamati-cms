@@ -27,13 +27,22 @@ import {
   Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import { itemApi, tagApi, categoryApi, inventoryApi } from '../services/api';
-import { GetItemForCmsResponse, ItemDetailsForCms, ItemResponse, SearchItemsRequest, StockLevel, StockLevelApiItem } from '../types/item';
+import { GetItemForCmsResponse, ItemResponse, SearchItemsRequest, StockLevel, StockLevelApiItem } from '../types/item';
 import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import { ActionButtonConfig } from '../types/actionButtons';
-import actionButtonsConfig from '../config/actionButtons.json';
 import ItemDialog from './ItemDialog';
 import LinkItemDialog from './LinkItemDialog';
+
+// Inlined config to avoid "n[e] is not a function" in production (no config module imports)
+const CATALOG_COLUMNS_CONFIG = {
+  amountPcs: { enabled: true, headerName: 'Amount (PCS)' as const, width: 120 },
+};
+const ACTION_BUTTONS_CONFIG: { actionButtons: ActionButtonConfig[] } = {
+  actionButtons: [
+    { id: 'inventory', label: 'Manage Inventory', icon: 'Inventory', color: 'primary', enabled: true, type: 'inventory' },
+  ],
+};
 
 const ItemList: React.FC = () => {
   const [items, setItems] = useState<ItemResponse[]>([]);
@@ -144,6 +153,7 @@ const ItemList: React.FC = () => {
               reservedQuantity: stock.reservedQuantity,
               totalQuantity: stock.quantity,
               stockByUoms: stock.stockByUoms,
+              totalAmountAsPcs: stock.totalAmountAsPcs,
             });
           }
         });
@@ -350,15 +360,31 @@ const ItemList: React.FC = () => {
     }
   };
 
+  const amountPcsConfig = CATALOG_COLUMNS_CONFIG.amountPcs;
+
+  // Amount (PCS) / stock column - always in array with valid renderCell; visibility via columnVisibilityModel
+  const amountPcsColumnDef: GridColDef = {
+    field: 'amountPcs',
+    headerName: amountPcsConfig?.headerName ?? 'Amount (PCS)',
+    width: amountPcsConfig?.width ?? 120,
+    renderCell: (params) => {
+      const itemId = params.row.guid;
+      const stock = stockLevels.get(itemId);
+      if (loadingStock) return <CircularProgress size={16} />;
+      if (!stock || stock.totalAmountAsPcs == null) return <Typography variant="body2" color="text.secondary">N/A</Typography>;
+      const amount = Math.floor(Number(stock.totalAmountAsPcs));
+      let color: 'default' | 'success' | 'warning' | 'error' = amount === 0 ? 'error' : amount < 10 ? 'warning' : 'success';
+      return <Chip label={amount} size="small" color={color} />;
+    },
+  };
+
   // Define columns for the data grid
   const columns: GridColDef[] = [
-        { 
+    {
       field: 'name', 
       headerName: 'Name', 
       width: 200,
-      valueGetter: (params) => {
-        return params.row.name || 'N/A';
-      }
+      valueGetter: (params) => params.row.name || 'N/A',
     },
     {
       field: 'parent',
@@ -425,70 +451,7 @@ const ItemList: React.FC = () => {
         </Box>
       ),
     },
-    {
-      field: 'stock',
-      headerName: 'Stock',
-      width: 250,
-      renderCell: (params) => {
-        const itemId = params.row.guid;
-        const stock = stockLevels.get(itemId);
-        
-        if (loadingStock) {
-          return <CircularProgress size={16} />;
-        }
-        
-        if (!stock) {
-          return <Typography variant="body2" color="text.secondary">N/A</Typography>;
-        }
-        
-        // If stockByUoms exists and has items, display all UOMs
-        if (stock.stockByUoms && stock.stockByUoms.length > 0) {
-          return (
-            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-              {stock.stockByUoms.map((uomStock, index) => {
-                const available = Math.floor(uomStock.availableQuantity ?? 0);
-                let color: 'default' | 'success' | 'warning' | 'error' = 'default';
-                if (available === 0) {
-                  color = 'error';
-                } else if (available < 10) {
-                  color = 'warning';
-                } else {
-                  color = 'success';
-                }
-                
-                return (
-                  <Chip
-                    key={index}
-                    label={`${uomStock.uomCode}: ${available}`}
-                    size="small"
-                    color={color}
-                  />
-                );
-              })}
-            </Box>
-          );
-        }
-        
-        // Fallback to main availableQuantity if stockByUoms is not available
-        const available = Math.floor(stock.availableQuantity ?? 0);
-        let color: 'default' | 'success' | 'warning' | 'error' = 'default';
-        if (available === 0) {
-          color = 'error';
-        } else if (available < 10) {
-          color = 'warning';
-        } else {
-          color = 'success';
-        }
-        
-        return (
-          <Chip 
-            label={available} 
-            size="small" 
-            color={color}
-          />
-        );
-      },
-    },
+    amountPcsColumnDef,
     {
       field: 'actions',
       headerName: 'Actions',
@@ -498,8 +461,7 @@ const ItemList: React.FC = () => {
         const item = params.row as ItemResponse;
         const hasParent = item.parent && item.parent !== null;
         
-        // Get enabled action buttons from config
-        const enabledActions = (actionButtonsConfig as { actionButtons: ActionButtonConfig[] }).actionButtons.filter(btn => btn.enabled);
+        const enabledActions = ACTION_BUTTONS_CONFIG.actionButtons.filter((btn) => btn.enabled);
         
         return (
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -686,6 +648,9 @@ const ItemList: React.FC = () => {
           pageSizeOptions={[10, 25, 50, 100]}
           initialState={{
             pagination: { paginationModel: { pageSize: 25 } },
+          }}
+          columnVisibilityModel={{
+            amountPcs: amountPcsConfig?.enabled !== false,
           }}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}

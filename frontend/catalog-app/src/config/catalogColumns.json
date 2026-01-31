@@ -1,0 +1,7 @@
+{
+  "amountPcs": {
+    "enabled": true,
+    "headerName": "Amount (PCS)",
+    "width": 120
+  }
+}

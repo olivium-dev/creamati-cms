@@ -57,6 +57,7 @@ export interface StockLevelApiItem {
   availableQuantity: number;
   lastUpdated: string;
   stockByUoms?: StockByUom[];
+  totalAmountAsPcs?: number;
 }
 
 export type StockLevelsApiResponse = StockLevelApiItem[];

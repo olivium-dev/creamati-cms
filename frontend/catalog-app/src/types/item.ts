@@ -153,6 +153,7 @@ export interface StockLevelApiItem {
   availableQuantity: number;
   lastUpdated: string;
   stockByUoms?: StockByUom[];
+  totalAmountAsPcs?: number;
 }
 
 export interface StockByUom {
@@ -171,6 +172,7 @@ export interface StockLevel {
   reservedQuantity: number;
   totalQuantity: number;
   stockByUoms?: StockByUom[];
+  totalAmountAsPcs?: number;
 }
 
 // API returns an array directly

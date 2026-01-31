@@ -2,7 +2,7 @@
  * Authentication Service - Singleton for managing authentication state
  */
 import apiClient from '../api/apiClient';
-import { User, LoginCredentials, TokenResponse } from './types';
+import { User, UserProfile, LoginCredentials, TokenResponse } from './types';
 import { 
   auth, 
   googleProvider, 
@@ -12,8 +12,6 @@ import {
   signOut as firebaseSignOut
 } from './firebaseConfig';
 import { SocialLoginResponse } from './firebaseTypes';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 class AuthService {
   private static instance: AuthService;
@@ -66,7 +64,7 @@ class AuthService {
   async login(credentials: LoginCredentials): Promise<TokenResponse> {
     try {
       // Use the gateway endpoint for authentication
-      const response = await apiClient.post<TokenResponse>('/api/users/login', credentials);
+      const response = await apiClient.post<TokenResponse>('/api/User/login/cms', credentials);
       const tokens = response.data;
 
       // Store tokens
@@ -80,7 +78,20 @@ class AuthService {
 
       return tokens;
     } catch (error: any) {
-      throw new Error(error.response?.data?.detail || 'Login failed');
+      if (error.response?.status === 403) {
+        const errorData = error.response.data;
+        let errorMessage: string;
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData && typeof errorData === 'object') {
+          const data = errorData as { message?: string; error?: string; detail?: string };
+          errorMessage = data.message || data.error || data.detail || 'Access denied. Your email is not authorized for CMS access.';
+        } else {
+          errorMessage = 'Access denied. Your email is not authorized for CMS access.';
+        }
+        throw new Error(errorMessage);
+      }
+      throw new Error(error.response?.data?.detail || error.response?.data?.message || 'Login failed');
     }
   }
 
@@ -103,7 +114,7 @@ class AuthService {
       console.log('🎫 Firebase ID token obtained');
       
       // 3. Send Firebase token to gateway for verification
-      const response = await apiClient.post<SocialLoginResponse>('/api/user/social', {
+      const response = await apiClient.post<SocialLoginResponse>('/api/user/social/cms', {
         socialId: user.uid,
         socialToken: idToken,
         socialPlatform: 'google'
@@ -117,8 +128,11 @@ class AuthService {
         refresh_token: response.data.refreshToken,
       };
 
-      // Store tokens
+      // Store tokens and userId
       this.storeTokens(tokens);
+      if (response.data.userId) {
+        localStorage.setItem('user_id', response.data.userId);
+      }
 
       // Schedule automatic token refresh
       this.scheduleTokenRefresh();
@@ -128,10 +142,42 @@ class AuthService {
 
       return tokens;
     } catch (error: any) {
-      console.error('❌ Google Sign-In error:', error);
+      // Handle API/backend errors FIRST - Axios errors also have .code, so we must check
+      // error.response before the Firebase error.code branch or we show "Request failed with status code 403"
+
+      // 403 Forbidden - user doesn't have access to CMS
+      // Backend returns: { "error": "Access denied", "message": "Your email is not authorized for CMS access." }
+      if (error.response?.status === 403) {
+        const errorData = error.response.data;
+        let errorMessage: string;
+
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData && typeof errorData === 'object') {
+          // Prefer message (user-facing), then error, then detail
+          const data = errorData as { message?: string; error?: string; detail?: string };
+          errorMessage = data.message || data.error || data.detail || 'Access denied. Your email is not authorized for CMS access.';
+        } else {
+          errorMessage = 'Access denied. Your email is not authorized for CMS access.';
+        }
+
+        throw new Error(errorMessage);
+      }
       
-      // Handle Firebase errors
-      if (error.code) {
+      // Handle other API errors with response data
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        const apiMessage = 
+          (typeof errorData === 'string' ? errorData : null) ||
+          errorData?.message || 
+          errorData?.detail || 
+          errorData?.error ||
+          error.message;
+        throw new Error(apiMessage || 'Google Sign-In failed');
+      }
+
+      // Firebase auth errors (auth/* codes) - only when not an API response
+      if (error.code && String(error.code).startsWith('auth/')) {
         switch (error.code) {
           case 'auth/popup-closed-by-user':
             throw new Error('Sign-in cancelled');
@@ -143,8 +189,8 @@ class AuthService {
             throw new Error(error.message || 'Google Sign-In failed');
         }
       }
-      
-      throw new Error(error.response?.data?.message || error.message || 'Google Sign-In failed');
+
+      throw new Error(error.message || 'Google Sign-In failed');
     }
   }
 
@@ -181,8 +227,11 @@ class AuthService {
         refresh_token: response.data.refreshToken,
       };
 
-      // Store tokens
+      // Store tokens and userId
       this.storeTokens(tokens);
+      if (response.data.userId) {
+        localStorage.setItem('user_id', response.data.userId);
+      }
 
       // Schedule automatic token refresh
       this.scheduleTokenRefresh();
@@ -249,8 +298,11 @@ class AuthService {
         refresh_token: response.data.refreshToken,
       };
 
-      // Store tokens
+      // Store tokens and userId
       this.storeTokens(tokens);
+      if (response.data.userId) {
+        localStorage.setItem('user_id', response.data.userId);
+      }
 
       // Schedule automatic token refresh
       this.scheduleTokenRefresh();
@@ -356,6 +408,31 @@ class AuthService {
   }
 
   /**
+   * Get stored user ID (set after login from backend response), or decode from JWT as fallback
+   */
+  getUserId(): string | null {
+    const stored = localStorage.getItem('user_id');
+    if (stored) return stored;
+    const token = this.getAccessToken();
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const sid = payload.sid ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/sid'];
+      return sid ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Fetch user profile from GET /api/User/profile/{userId}
+   */
+  async getUserProfile(userId: string): Promise<UserProfile> {
+    const response = await apiClient.get<UserProfile>(`/api/User/profile/${userId}`);
+    return response.data;
+  }
+
+  /**
    * Store tokens in localStorage
    */
   private storeTokens(tokens: TokenResponse): void {
@@ -364,11 +441,12 @@ class AuthService {
   }
 
   /**
-   * Clear tokens from localStorage
+   * Clear tokens and userId from localStorage
    */
   private clearTokens(): void {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_id');
   }
 
   /**
@@ -430,8 +508,4 @@ class AuthService {
 
 export const authService = AuthService.getInstance();
 export default authService;
-
-
-
-
 
