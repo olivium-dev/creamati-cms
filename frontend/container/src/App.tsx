@@ -1,4 +1,38 @@
 import React, { useState, Suspense, useEffect } from 'react';
+
+// Global error handler for Module Federation debugging
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    // Check for webpack/module federation specific errors
+    const errorString = args.map(a => String(a)).join(' ');
+    if (errorString.includes('is not a function') || 
+        errorString.includes('Cannot read properties of undefined') ||
+        errorString.includes('remoteEntry') ||
+        errorString.includes('__webpack')) {
+      console.group('🔴 [MF Debug] Potential Module Federation Error Detected');
+      console.log('Arguments:', args);
+      console.log('Webpack share scopes:', (window as any).__webpack_share_scopes__);
+      console.log('Timestamp:', new Date().toISOString());
+      console.trace('Stack trace:');
+      console.groupEnd();
+    }
+    originalError.apply(console, args);
+  };
+
+  // Catch unhandled promise rejections (common with dynamic imports)
+  window.addEventListener('unhandledrejection', (event) => {
+    console.group('🔴 [MF Debug] Unhandled Promise Rejection');
+    console.error('Reason:', event.reason);
+    console.error('Promise:', event.promise);
+    if (event.reason?.stack) {
+      console.error('Stack:', event.reason.stack);
+    }
+    console.groupEnd();
+  });
+
+  console.log('✅ [MF Debug] Module Federation debug handlers installed');
+}
 import {
   Box,
   AppBar,
@@ -48,13 +82,97 @@ import ErrorMonitor from './pages/ErrorMonitor';
 import LoginScreen from './components/LoginScreen';
 import { layoutConfig } from './config/layoutConfig';
 
+// Debug utility for Module Federation
+const debugModuleFederation = (moduleName: string, module: any) => {
+  console.group(`🔍 [MF Debug] ${moduleName}`);
+  console.log('Module:', module);
+  console.log('Type:', typeof module);
+  console.log('Keys:', module ? Object.keys(module) : 'N/A');
+  console.log('Default export:', module?.default);
+  console.log('Default type:', typeof module?.default);
+  if (module?.default) {
+    console.log('Default keys:', Object.keys(module.default));
+  }
+  console.groupEnd();
+  return module;
+};
+
+// Function to diagnose shared dependencies
+const diagnoseSharedDependencies = () => {
+  console.group('📊 [MF Diagnostics] Shared Dependencies Status');
+  
+  const shareScopes = (window as any).__webpack_share_scopes__;
+  if (!shareScopes) {
+    console.warn('No webpack share scopes found - this might be before initialization');
+    console.groupEnd();
+    return;
+  }
+  
+  console.log('Available scopes:', Object.keys(shareScopes));
+  
+  Object.entries(shareScopes).forEach(([scopeName, scope]: [string, any]) => {
+    console.group(`Scope: ${scopeName}`);
+    if (scope && typeof scope === 'object') {
+      Object.entries(scope).forEach(([depName, depInfo]: [string, any]) => {
+        console.log(`  ${depName}:`, {
+          loaded: depInfo?.loaded,
+          eager: depInfo?.eager,
+          from: depInfo?.from,
+          version: depInfo?.version,
+        });
+      });
+    }
+    console.groupEnd();
+  });
+  
+  // Check for critical dependencies
+  const criticalDeps = ['react', 'react-dom', '@tanstack/react-query', 'axios', '@mui/material'];
+  console.group('Critical Dependencies Check:');
+  criticalDeps.forEach(dep => {
+    const found = shareScopes?.default?.[dep];
+    console.log(`  ${dep}: ${found ? '✅ Found' : '❌ NOT FOUND'}`);
+  });
+  console.groupEnd();
+  
+  console.groupEnd();
+};
+
 // Lazy load remote micro-frontends
 const UserManagement = React.lazy(() => import('userApp/UserManagement'));
 const DataGrid = React.lazy(() => import('dataApp/DataGrid'));
 const Analytics = React.lazy(() => import('analyticsApp/Analytics'));
 const Settings = React.lazy(() => import('settingsApp/Settings'));
 const Orders = React.lazy(() => import('ordersApp/Orders'));
-const Catalog = React.lazy(() => import('catalogApp/Catalog'));
+const Catalog = React.lazy(() => 
+  import('catalogApp/Catalog')
+    .then((module) => {
+      debugModuleFederation('catalogApp/Catalog', module);
+      // Check if the module has the expected structure
+      if (!module.default) {
+        console.error('❌ [MF Error] catalogApp/Catalog: No default export found!');
+        console.error('Available exports:', Object.keys(module));
+      } else if (typeof module.default !== 'function') {
+        console.error('❌ [MF Error] catalogApp/Catalog: Default export is not a function/component!');
+        console.error('Default export type:', typeof module.default);
+        console.error('Default export value:', module.default);
+      }
+      return module;
+    })
+    .catch((error) => {
+      console.error('❌ [MF Error] Failed to load catalogApp/Catalog:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      // Log webpack internals if available
+      if ((window as any).__webpack_share_scopes__) {
+        console.log('📦 Webpack share scopes:', (window as any).__webpack_share_scopes__);
+      }
+      if ((window as any).__webpack_require__) {
+        console.log('📦 Webpack require available');
+      }
+      throw error;
+    })
+);
 const Delivery = React.lazy(() => import('deliveryApp/Delivery'));
 const Inventory = React.lazy(() => import('inventoryApp/Inventory'));
 
@@ -157,6 +275,10 @@ function App() {
 
   // Check authentication on mount and handle URL params
   useEffect(() => {
+    // Run Module Federation diagnostics on mount
+    console.log('🚀 [MF] Container App mounting...');
+    diagnoseSharedDependencies();
+    
     const checkAuth = async () => {
       const isAuth = authService.isAuthenticated();
       setIsAuthenticated(isAuth);
@@ -373,11 +495,36 @@ function App() {
                   </ErrorBoundary>
                 );
               case 'catalog':
+                console.log('🚀 [MF] Rendering Catalog component...');
                 return (
                   <ErrorBoundary 
                     componentName="Catalog App" 
-                    fallback={ErrorFallback}
+                    fallback={(error: Error, errorInfo: React.ErrorInfo, retry: () => void) => {
+                      // Enhanced error logging for Catalog
+                      console.group('❌ [MF Error] Catalog App Error Boundary');
+                      console.error('Error:', error);
+                      console.error('Error name:', error.name);
+                      console.error('Error message:', error.message);
+                      console.error('Error stack:', error.stack);
+                      console.error('Component stack:', errorInfo.componentStack);
+                      
+                      // Log webpack share scopes to debug shared dependencies
+                      if ((window as any).__webpack_share_scopes__) {
+                        console.log('📦 Webpack share scopes:', JSON.stringify((window as any).__webpack_share_scopes__, null, 2));
+                      }
+                      
+                      // Check for specific Module Federation errors
+                      if (error.message?.includes('is not a function')) {
+                        console.error('🔴 This is likely a Module Federation shared dependency mismatch!');
+                        console.error('Check if @tanstack/react-query, axios, or uuid are properly shared');
+                      }
+                      
+                      console.groupEnd();
+                      
+                      return ErrorFallback(error, errorInfo, retry);
+                    }}
                     onError={(error: Error, errorInfo: React.ErrorInfo) => {
+                      console.error('🔴 [MF] Catalog App onError triggered:', error.message);
                       ErrorCapture.captureModuleFederationError('catalogApp/Catalog', error);
                     }}
                   >
