@@ -31,9 +31,17 @@ import { GetItemForCmsResponse, ItemResponse, SearchItemsRequest, StockLevel, St
 import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import { ActionButtonConfig } from '../types/actionButtons';
-import { catalogColumnsConfig } from '../config/catalogColumns';
-import { actionButtonsConfig } from '../config/actionButtons';
 import ItemDialog from './ItemDialog';
+
+// Inlined config to avoid "n[e] is not a function" in production (no config module imports)
+const CATALOG_COLUMNS_CONFIG = {
+  amountPcs: { enabled: true, headerName: 'Amount (PCS)' as const, width: 120 },
+};
+const ACTION_BUTTONS_CONFIG: { actionButtons: ActionButtonConfig[] } = {
+  actionButtons: [
+    { id: 'inventory', label: 'Manage Inventory', icon: 'Inventory', color: 'primary', enabled: true, type: 'inventory' },
+  ],
+};
 import LinkItemDialog from './LinkItemDialog';
 
 const ItemList: React.FC = () => {
@@ -352,8 +360,7 @@ const ItemList: React.FC = () => {
     }
   };
 
-  // Catalog column visibility/config (e.g. Amount PCS)
-  const amountPcsConfig = catalogColumnsConfig?.amountPcs;
+  const amountPcsConfig = CATALOG_COLUMNS_CONFIG.amountPcs;
 
   // Amount (PCS) / stock column - always in array with valid renderCell; visibility via columnVisibilityModel
   const amountPcsColumnDef: GridColDef = {
@@ -454,9 +461,7 @@ const ItemList: React.FC = () => {
         const item = params.row as ItemResponse;
         const hasParent = item.parent && item.parent !== null;
         
-        // Get enabled action buttons from config (safe fallback for production)
-        const buttons = actionButtonsConfig?.actionButtons ?? [];
-        const enabledActions = Array.isArray(buttons) ? buttons.filter((btn: ActionButtonConfig) => btn.enabled) : [];
+        const enabledActions = ACTION_BUTTONS_CONFIG.actionButtons.filter((btn) => btn.enabled);
         
         return (
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
