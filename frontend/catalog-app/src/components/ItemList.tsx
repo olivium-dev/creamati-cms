@@ -32,6 +32,7 @@ import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import { ActionButtonConfig } from '../types/actionButtons';
 import ItemDialog from './ItemDialog';
+import LinkItemDialog from './LinkItemDialog';
 
 // Inlined config to avoid "n[e] is not a function" in production (no config module imports)
 const CATALOG_COLUMNS_CONFIG = {
@@ -42,7 +43,6 @@ const ACTION_BUTTONS_CONFIG: { actionButtons: ActionButtonConfig[] } = {
     { id: 'inventory', label: 'Manage Inventory', icon: 'Inventory', color: 'primary', enabled: true, type: 'inventory' },
   ],
 };
-import LinkItemDialog from './LinkItemDialog';
 
 const ItemList: React.FC = () => {
   const [items, setItems] = useState<ItemResponse[]>([]);
