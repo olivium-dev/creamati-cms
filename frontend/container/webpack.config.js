@@ -125,16 +125,6 @@ module.exports = {
           requiredVersion: '^11.11.0',
           eager: true,
         },
-        axios: {
-          singleton: true,
-          requiredVersion: '^1.6.0',
-          eager: true,
-        },
-        uuid: {
-          singleton: true,
-          requiredVersion: '^9.0.1',
-          eager: true,
-        },
       },
     }),
     new HtmlWebpackPlugin({
