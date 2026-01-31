@@ -40,6 +40,7 @@ const InventoryForm: React.FC = () => {
   const [loadingUoms, setLoadingUoms] = useState(false);
   const [uomError, setUomError] = useState<string | null>(null);
   const [currentQuantity, setCurrentQuantity] = useState<number | StockByUom[] | null>(null);
+  const [totalStockInPieces, setTotalStockInPieces] = useState<number | null>(null);
   const [loadingQuantity, setLoadingQuantity] = useState(false);
 
   useEffect(() => {
@@ -68,14 +69,20 @@ const InventoryForm: React.FC = () => {
           // Fallback to single value
           setCurrentQuantity(Math.floor(stock.availableQuantity ?? 0));
         }
+        // Total stock in pieces (same value as in catalog)
+        setTotalStockInPieces(
+          stock.totalAmountAsPcs != null ? Math.floor(Number(stock.totalAmountAsPcs)) : null
+        );
       } else {
         setCurrentQuantity(0);
+        setTotalStockInPieces(null);
       }
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;
       console.error('Error fetching current quantity:', axiosError.message);
       // Don't show error to user, just set to 0
       setCurrentQuantity(0);
+      setTotalStockInPieces(null);
     } finally {
       setLoadingQuantity(false);
     }
@@ -221,7 +228,7 @@ const InventoryForm: React.FC = () => {
               Loading current stock...
             </Typography>
           </Box>
-        ) : currentQuantity !== null && (
+        ) : (currentQuantity !== null || totalStockInPieces !== null) && (
           <Box sx={{ mb: 2 }}>
             <Typography variant="body2" color="primary" sx={{ fontWeight: 500, mb: 1 }}>
               Current Stock:
@@ -241,6 +248,16 @@ const InventoryForm: React.FC = () => {
               <Typography variant="body2" color="primary" sx={{ fontWeight: 500 }}>
                 <strong>{typeof currentQuantity === 'number' ? currentQuantity.toLocaleString() : 'N/A'}</strong>
               </Typography>
+            )}
+            {totalStockInPieces !== null && (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography variant="body2" color="primary" sx={{ fontWeight: 500, mb: 0.5 }}>
+                  Total stock in pieces:
+                </Typography>
+                <Typography variant="body2" component="span" sx={{ fontWeight: 600 }}>
+                  {totalStockInPieces.toLocaleString()}
+                </Typography>
+              </Box>
             )}
           </Box>
         )}
