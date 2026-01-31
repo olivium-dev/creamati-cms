@@ -95,6 +95,11 @@ module.exports = {
           requiredVersion: '^1.6.0',
           eager: false,
         },
+        '@tanstack/react-query': {
+          singleton: true,
+          requiredVersion: '^5.0.0',
+          eager: false,
+        },
       },
     }),
     new HtmlWebpackPlugin({

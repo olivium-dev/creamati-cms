@@ -109,8 +109,8 @@ module.exports = {
         },
         '@tanstack/react-query': {
           singleton: true,
-          requiredVersion: '^5.17.0',
-          eager: true,
+          requiredVersion: '^5.0.0',
+          eager: false,
         },
       },
     }),
