@@ -1,10 +1,14 @@
 import type { CatalogColumnsConfig } from '../types/catalogColumns';
 
-// Import JSON - bundlers may expose as default or as the object itself
-import rawCatalogColumns from './catalogColumns.json';
-
-const raw = rawCatalogColumns as CatalogColumnsConfig | { default: CatalogColumnsConfig };
-export const catalogColumnsConfig: CatalogColumnsConfig =
-  raw && typeof (raw as { default?: CatalogColumnsConfig }).default === 'object'
-    ? (raw as { default: CatalogColumnsConfig }).default
-    : (raw as CatalogColumnsConfig);
+/**
+ * Catalog column display config (stock/amount column).
+ * Edit the object below to change visibility, header label, and width.
+ * No JSON import here to avoid production/minification issues.
+ */
+export const catalogColumnsConfig: CatalogColumnsConfig = {
+  amountPcs: {
+    enabled: true,
+    headerName: 'Amount (PCS)',
+    width: 120,
+  },
+};

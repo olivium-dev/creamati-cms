@@ -27,13 +27,12 @@ import {
   Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import { itemApi, tagApi, categoryApi, inventoryApi } from '../services/api';
-import { GetItemForCmsResponse, ItemDetailsForCms, ItemResponse, SearchItemsRequest, StockLevel, StockLevelApiItem } from '../types/item';
+import { GetItemForCmsResponse, ItemResponse, SearchItemsRequest, StockLevel, StockLevelApiItem } from '../types/item';
 import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import { ActionButtonConfig } from '../types/actionButtons';
-import { CatalogColumnsConfig } from '../types/catalogColumns';
-import actionButtonsConfig from '../config/actionButtons.json';
 import { catalogColumnsConfig } from '../config/catalogColumns';
+import { actionButtonsConfig } from '../config/actionButtons';
 import ItemDialog from './ItemDialog';
 import LinkItemDialog from './LinkItemDialog';
 
@@ -356,7 +355,7 @@ const ItemList: React.FC = () => {
   // Catalog column visibility/config (e.g. Amount PCS)
   const amountPcsConfig = catalogColumnsConfig?.amountPcs;
 
-  // Amount (PCS) column def - built once so minifier keeps renderCell reference (fixes "n[e] is not a function" in prod)
+  // Amount (PCS) / stock column - always in array with valid renderCell; visibility via columnVisibilityModel
   const amountPcsColumnDef: GridColDef = {
     field: 'amountPcs',
     headerName: amountPcsConfig?.headerName ?? 'Amount (PCS)',
@@ -374,13 +373,11 @@ const ItemList: React.FC = () => {
 
   // Define columns for the data grid
   const columns: GridColDef[] = [
-        { 
+    {
       field: 'name', 
       headerName: 'Name', 
       width: 200,
-      valueGetter: (params) => {
-        return params.row.name || 'N/A';
-      }
+      valueGetter: (params) => params.row.name || 'N/A',
     },
     {
       field: 'parent',
@@ -447,8 +444,7 @@ const ItemList: React.FC = () => {
         </Box>
       ),
     },
-    // Amount (PCS) column - configurable via catalogColumns.json; include only when enabled
-    ...(amountPcsConfig?.enabled ? [amountPcsColumnDef] : []),
+    amountPcsColumnDef,
     {
       field: 'actions',
       headerName: 'Actions',
@@ -458,8 +454,9 @@ const ItemList: React.FC = () => {
         const item = params.row as ItemResponse;
         const hasParent = item.parent && item.parent !== null;
         
-        // Get enabled action buttons from config
-        const enabledActions = (actionButtonsConfig as { actionButtons: ActionButtonConfig[] }).actionButtons.filter(btn => btn.enabled);
+        // Get enabled action buttons from config (safe fallback for production)
+        const buttons = actionButtonsConfig?.actionButtons ?? [];
+        const enabledActions = Array.isArray(buttons) ? buttons.filter((btn: ActionButtonConfig) => btn.enabled) : [];
         
         return (
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -646,6 +643,9 @@ const ItemList: React.FC = () => {
           pageSizeOptions={[10, 25, 50, 100]}
           initialState={{
             pagination: { paginationModel: { pageSize: 25 } },
+          }}
+          columnVisibilityModel={{
+            amountPcs: amountPcsConfig?.enabled !== false,
           }}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}

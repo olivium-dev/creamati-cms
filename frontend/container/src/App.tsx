@@ -470,7 +470,7 @@ function App() {
             component="div"
             sx={{ flexGrow: 1, color: '#61dafb' }}
           >
-            {layoutConfig.navbar.title}
+            {layoutConfig?.navbar?.title ?? 'Creamat CMS'}
           </Typography>
           <Typography variant="body2" sx={{ mr: 2, color: '#cccccc' }}>
             Welcome, {userProfile?.username ?? 'User'}
@@ -672,7 +672,7 @@ function App() {
       >
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="body2" color="#cccccc">
-            {layoutConfig.footer.text}
+            {layoutConfig?.footer?.text ?? '© 2025 Creamat CMS. Built with React + MUI.'}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Chip
