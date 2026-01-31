@@ -499,32 +499,40 @@ function App() {
                 return (
                   <ErrorBoundary 
                     componentName="Catalog App" 
-                    fallback={(error: Error, errorInfo: React.ErrorInfo, retry: () => void) => {
+                    fallback={(error: Error, errorInfo?: React.ErrorInfo, retry?: () => void) => {
                       // Enhanced error logging for Catalog
                       console.group('❌ [MF Error] Catalog App Error Boundary');
                       console.error('Error:', error);
-                      console.error('Error name:', error.name);
-                      console.error('Error message:', error.message);
-                      console.error('Error stack:', error.stack);
-                      console.error('Component stack:', errorInfo.componentStack);
+                      console.error('Error name:', error?.name);
+                      console.error('Error message:', error?.message);
+                      console.error('Error stack:', error?.stack);
+                      console.error('Component stack:', errorInfo?.componentStack || 'N/A');
+                      console.error('ErrorInfo available:', !!errorInfo);
+                      console.error('Retry function available:', !!retry);
                       
                       // Log webpack share scopes to debug shared dependencies
-                      if ((window as any).__webpack_share_scopes__) {
-                        console.log('📦 Webpack share scopes:', JSON.stringify((window as any).__webpack_share_scopes__, null, 2));
+                      try {
+                        if ((window as any).__webpack_share_scopes__) {
+                          console.log('📦 Webpack share scopes:', (window as any).__webpack_share_scopes__);
+                        }
+                      } catch (e) {
+                        console.log('📦 Could not read webpack share scopes:', e);
                       }
                       
                       // Check for specific Module Federation errors
-                      if (error.message?.includes('is not a function')) {
+                      if (error?.message?.includes('is not a function')) {
                         console.error('🔴 This is likely a Module Federation shared dependency mismatch!');
                         console.error('Check if @tanstack/react-query, axios, or uuid are properly shared');
                       }
                       
                       console.groupEnd();
                       
-                      return ErrorFallback(error, errorInfo, retry);
+                      const retryFn = retry || (() => window.location.reload());
+                      const errorInfoSafe = errorInfo || { componentStack: '' } as React.ErrorInfo;
+                      return ErrorFallback(error, errorInfoSafe, retryFn);
                     }}
                     onError={(error: Error, errorInfo: React.ErrorInfo) => {
-                      console.error('🔴 [MF] Catalog App onError triggered:', error.message);
+                      console.error('🔴 [MF] Catalog App onError triggered:', error?.message);
                       ErrorCapture.captureModuleFederationError('catalogApp/Catalog', error);
                     }}
                   >
