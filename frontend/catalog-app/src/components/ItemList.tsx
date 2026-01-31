@@ -31,7 +31,9 @@ import { GetItemForCmsResponse, ItemDetailsForCms, ItemResponse, SearchItemsRequ
 import { CategoryCmsResponse } from '../types/category';
 import { AdditionalParamsService } from '../services/additionalParamsService';
 import { ActionButtonConfig } from '../types/actionButtons';
+import { CatalogColumnsConfig } from '../types/catalogColumns';
 import actionButtonsConfig from '../config/actionButtons.json';
+import catalogColumnsConfig from '../config/catalogColumns.json';
 import ItemDialog from './ItemDialog';
 import LinkItemDialog from './LinkItemDialog';
 
@@ -144,6 +146,7 @@ const ItemList: React.FC = () => {
               reservedQuantity: stock.reservedQuantity,
               totalQuantity: stock.quantity,
               stockByUoms: stock.stockByUoms,
+              totalAmountAsPcs: stock.totalAmountAsPcs,
             });
           }
         });
@@ -350,6 +353,10 @@ const ItemList: React.FC = () => {
     }
   };
 
+  // Catalog column visibility/config (e.g. Amount PCS)
+  const catalogColumns = catalogColumnsConfig as CatalogColumnsConfig;
+  const amountPcsConfig = catalogColumns.amountPcs;
+
   // Define columns for the data grid
   const columns: GridColDef[] = [
         { 
@@ -489,6 +496,46 @@ const ItemList: React.FC = () => {
         );
       },
     },
+    // Amount (PCS) column - configurable via catalogColumns.json
+    ...(amountPcsConfig?.enabled
+      ? [
+          {
+            field: 'amountPcs',
+            headerName: amountPcsConfig.headerName,
+            width: amountPcsConfig.width,
+            renderCell: (params: { row: { guid: string } }) => {
+              const itemId = params.row.guid;
+              const stock = stockLevels.get(itemId);
+
+              if (loadingStock) {
+                return <CircularProgress size={16} />;
+              }
+
+              if (!stock || stock.totalAmountAsPcs == null) {
+                return <Typography variant="body2" color="text.secondary">N/A</Typography>;
+              }
+
+              const amount = Math.floor(Number(stock.totalAmountAsPcs));
+              let color: 'default' | 'success' | 'warning' | 'error' = 'default';
+              if (amount === 0) {
+                color = 'error';
+              } else if (amount < 10) {
+                color = 'warning';
+              } else {
+                color = 'success';
+              }
+
+              return (
+                <Chip
+                  label={amount}
+                  size="small"
+                  color={color}
+                />
+              );
+            },
+          } as GridColDef,
+        ]
+      : []),
     {
       field: 'actions',
       headerName: 'Actions',

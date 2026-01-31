@@ -3,9 +3,7 @@
  */
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// Use empty base URL for relative paths - micro-frontends call gateway API directly
-// This avoids CORS issues by using the same origin as the frontend
-const API_URL = 'https://dev-creamat.fds-1.com/gateway/'; //'https://localhost:7254/';
+const API_URL = 'https://dev-creamat.fds-1.com/gateway/';
 
 // Create axios instance
 export const apiClient: AxiosInstance = axios.create({
@@ -46,7 +44,7 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     console.error(`❌ API Error: ${error.response?.status || 'Network'} ${error.config?.url}`, error.message);
-    
+
     // Handle CORS errors
     if (!error.response && error.message.includes('Network Error')) {
       console.error('🚨 CORS Error detected - check server CORS configuration');
@@ -102,8 +100,4 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
-
-
-
 

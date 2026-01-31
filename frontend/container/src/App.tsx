@@ -147,6 +147,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<{ username: string; profilePic: string } | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -178,23 +179,24 @@ function App() {
     }
   }, []);
 
-  // Handle login with Firebase Email/Password
-  const handleLogin = async (email: string, password: string) => {
-    setAuthLoading(true);
-    setLoginError(null);
-    try {
-      console.log('🔐 Attempting Firebase Email/Password login...');
-      await authService.loginWithEmailPassword(email, password);
-      console.log('✅ Firebase login successful');
-      setIsAuthenticated(true);
-      setAuthLoading(false);
-    } catch (error: any) {
-      console.error('❌ Firebase login failed:', error);
-      setLoginError(error.message || 'Login failed');
-      setAuthLoading(false);
-      throw error;
+  // Fetch user profile when authenticated (username + profilePic for header)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUserProfile(null);
+      return;
     }
-  };
+    const userId = authService.getUserId();
+    if (!userId) return;
+    let cancelled = false;
+    authService.getUserProfile(userId)
+      .then((profile) => {
+        if (!cancelled) setUserProfile({ username: profile.username, profilePic: profile.profilePic });
+      })
+      .catch(() => {
+        if (!cancelled) setUserProfile(null);
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -438,7 +440,7 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} loading={authLoading} error={loginError} />;
+    return <LoginScreen loading={authLoading} error={loginError} />;
   }
 
   return (
@@ -470,12 +472,17 @@ function App() {
             Micro-Frontend Platform
           </Typography>
           <Typography variant="body2" sx={{ mr: 2, color: '#cccccc' }}>
-            Welcome, Admin
+            Welcome, {userProfile?.username ?? 'User'}
           </Typography>
           <IconButton onClick={handleLogout} sx={{ color: 'white', mr: 1 }} title="Logout">
             <LogoutIcon />
           </IconButton>
-          <Avatar sx={{ bgcolor: '#61dafb', color: '#000' }}>A</Avatar>
+          <Avatar
+            src={userProfile?.profilePic}
+            sx={{ bgcolor: '#61dafb', color: '#000' }}
+          >
+            {userProfile?.username?.charAt(0) ?? 'U'}
+          </Avatar>
         </Toolbar>
       </AppBar>
 
